@@ -1,0 +1,367 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Live2D Desk Occlusion Demo</title>
+    <style>
+      :root {
+        --panel-bg: rgba(15, 20, 26, 0.82);
+        --panel-border: rgba(255, 255, 255, 0.18);
+        --text-main: #f2f6fb;
+        --text-dim: #b9c4d1;
+        --accent: #6dc2a2;
+        --warn: #ffd786;
+      }
+
+      html,
+      body {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        overflow: hidden;
+        background: radial-gradient(circle at 20% 20%, #243040, #0e1116 62%);
+        color: var(--text-main);
+        font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      }
+
+      #stage {
+        width: 100vw;
+        height: 100vh;
+      }
+
+      #panel {
+        position: fixed;
+        left: 14px;
+        top: 14px;
+        width: min(480px, calc(100vw - 28px));
+        max-height: calc(100vh - 28px);
+        overflow: auto;
+        padding: 12px;
+        border: 1px solid var(--panel-border);
+        border-radius: 12px;
+        background: var(--panel-bg);
+        backdrop-filter: blur(8px);
+        box-sizing: border-box;
+      }
+
+      h1 {
+        margin: 0 0 8px 0;
+        font-size: 15px;
+        font-weight: 700;
+      }
+
+      .tip {
+        margin: 0 0 10px 0;
+        color: var(--text-dim);
+        font-size: 12px;
+        line-height: 1.35;
+      }
+
+      .section-title {
+        margin: 12px 0 6px 0;
+        font-size: 12px;
+        font-weight: 700;
+        color: #d9e3ee;
+      }
+
+      .row {
+        display: grid;
+        grid-template-columns: 130px 1fr 82px;
+        gap: 8px;
+        align-items: center;
+        margin: 7px 0;
+        font-size: 12px;
+      }
+
+      .row input[type="number"],
+      .row select,
+      #polygonInput {
+        width: 100%;
+        box-sizing: border-box;
+        border: 1px solid var(--panel-border);
+        background: rgba(255, 255, 255, 0.07);
+        color: var(--text-main);
+        border-radius: 8px;
+        padding: 6px 8px;
+        font-size: 12px;
+      }
+
+      .scrub-input {
+        cursor: ew-resize;
+      }
+
+      .scrub-input.scrubbing {
+        border-color: var(--accent);
+        box-shadow: 0 0 0 1px rgba(109, 194, 162, 0.65) inset;
+      }
+
+      #polygonInput {
+        min-height: 92px;
+        resize: vertical;
+        font-family: Consolas, "Courier New", monospace;
+        line-height: 1.3;
+      }
+
+      .checkbox-row {
+        margin: 6px 0;
+        font-size: 12px;
+        color: var(--text-dim);
+      }
+
+      .buttons {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 8px;
+      }
+
+      button {
+        border: 1px solid var(--panel-border);
+        background: rgba(255, 255, 255, 0.08);
+        color: var(--text-main);
+        border-radius: 8px;
+        padding: 6px 10px;
+        font-size: 12px;
+        cursor: pointer;
+      }
+
+      button:hover {
+        background: rgba(255, 255, 255, 0.15);
+      }
+
+      .primary {
+        background: rgba(109, 194, 162, 0.22);
+      }
+
+      .primary:hover {
+        background: rgba(109, 194, 162, 0.36);
+      }
+
+      .active-btn {
+        background: rgba(255, 183, 94, 0.26);
+        border-color: rgba(255, 183, 94, 0.62);
+      }
+
+      .hint {
+        margin-top: 6px;
+        color: var(--text-dim);
+        font-size: 11px;
+      }
+
+      #status {
+        margin-top: 8px;
+        min-height: 34px;
+        color: var(--warn);
+        font-size: 12px;
+        line-height: 1.3;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="stage"></div>
+
+    <div id="panel">
+      <h1 data-i18n="title">Desk Occlusion Live2D Demo</h1>
+      <p class="tip" data-i18n="tip_main">
+        Drag model to move, wheel to scale. Number fields support long press + left/right drag for fast adjustment.
+      </p>
+
+      <label class="row" for="languageSelect">
+        <span data-i18n="language">Language</span>
+        <select id="languageSelect">
+          <option value="zh">中文</option>
+          <option value="en">English</option>
+        </select>
+        <span data-i18n="unit_switch">switch</span>
+      </label>
+
+      <div class="section-title" data-i18n="section_model">Model Transform</div>
+      <label class="row" for="xInput">
+        <span data-i18n="model_x">Model X (px)</span>
+        <input id="xInput" class="scrub-input" type="number" step="1" />
+        <span data-i18n="unit_free">free</span>
+      </label>
+      <label class="row" for="yInput">
+        <span data-i18n="model_y">Model Y (px)</span>
+        <input id="yInput" class="scrub-input" type="number" step="1" />
+        <span data-i18n="unit_free">free</span>
+      </label>
+      <label class="row" for="scaleInput">
+        <span data-i18n="model_scale">Model Scale</span>
+        <input id="scaleInput" class="scrub-input" type="number" step="0.01" />
+        <span data-i18n="unit_free">free</span>
+      </label>
+      <div class="hint" data-i18n="tip_scrub">
+        Tip: hover number input, hold left click, drag left/right to rapidly change value.
+      </div>
+
+      <div class="section-title" data-i18n="section_lighting">🌟 Ambient Lighting Fusion</div>
+      <label class="checkbox-row">
+        <input id="enableLighting" type="checkbox" />
+        <span data-i18n="enable_lighting">Enable Ambient Lighting (Experimental)</span>
+      </label>
+
+      <label class="row" for="lightingIntensity">
+        <span data-i18n="lighting_intensity">Effect Intensity</span>
+        <input id="lightingIntensity" class="scrub-input" type="number" step="0.05" min="0" max="1" value="0.5" />
+        <span data-i18n="unit_ratio">0-1</span>
+      </label>
+
+      <label class="row" for="lightingSmoothing">
+        <span data-i18n="lighting_smoothing">Smoothing</span>
+        <input id="lightingSmoothing" class="scrub-input" type="number" step="0.05" min="0" max="1" value="0.3" />
+        <span data-i18n="unit_ratio">0-1</span>
+      </label>
+
+      <label class="row" for="lightingUpdateInterval">
+        <span data-i18n="lighting_update_interval">Update Interval</span>
+        <input id="lightingUpdateInterval" class="scrub-input" type="number" step="10" min="50" max="500" value="100" />
+        <span data-i18n="unit_ms">ms</span>
+      </label>
+
+      <label class="checkbox-row">
+        <input id="enableColorTemp" type="checkbox" checked />
+        <span data-i18n="enable_color_temp">Color Temperature Adjustment</span>
+      </label>
+
+      <label class="row" for="colorTempStrength">
+        <span data-i18n="color_temp_strength">Color Temp Strength</span>
+        <input id="colorTempStrength" class="scrub-input" type="number" step="0.05" min="0" max="1" value="1.0" />
+        <span data-i18n="unit_ratio">0-1</span>
+      </label>
+
+      <label class="checkbox-row">
+        <input id="enableBrightness" type="checkbox" checked />
+        <span data-i18n="enable_brightness">Brightness Adjustment</span>
+      </label>
+
+      <label class="row" for="brightnessStrength">
+        <span data-i18n="brightness_strength">Brightness Strength</span>
+        <input id="brightnessStrength" class="scrub-input" type="number" step="0.05" min="0" max="1" value="1.0" />
+        <span data-i18n="unit_ratio">0-1</span>
+      </label>
+
+      <label class="row" for="brightnessRange">
+        <span data-i18n="brightness_range">Brightness Range</span>
+        <input id="brightnessRange" class="scrub-input" type="number" step="0.1" min="0.5" max="2.0" value="1.5" />
+        <span data-i18n="unit_multiplier">0.5-2x</span>
+      </label>
+
+      <label class="checkbox-row">
+        <input id="enableContrast" type="checkbox" />
+        <span data-i18n="enable_contrast">Contrast Adjustment</span>
+      </label>
+
+      <label class="row" for="contrastStrength">
+        <span data-i18n="contrast_strength">Contrast Strength</span>
+        <input id="contrastStrength" class="scrub-input" type="number" step="0.05" min="0" max="1" value="0.3" />
+        <span data-i18n="unit_ratio">0-1</span>
+      </label>
+
+      <label class="checkbox-row">
+        <input id="enableSaturation" type="checkbox" />
+        <span data-i18n="enable_saturation">Saturation Adjustment</span>
+      </label>
+
+      <label class="row" for="saturationStrength">
+        <span data-i18n="saturation_strength">Saturation Strength</span>
+        <input id="saturationStrength" class="scrub-input" type="number" step="0.05" min="0" max="1" value="0.2" />
+        <span data-i18n="unit_ratio">0-1</span>
+      </label>
+
+      <label class="checkbox-row">
+        <input id="enableAdvancedFilters" type="checkbox" />
+        <span data-i18n="enable_advanced_filters">Advanced Filters (Rim Light)</span>
+      </label>
+
+      <label class="row" for="rimLightIntensity">
+        <span data-i18n="rim_light_intensity">Rim Light Intensity</span>
+        <input id="rimLightIntensity" class="scrub-input" type="number" step="0.05" min="0" max="1" value="0.5" />
+        <span data-i18n="unit_ratio">0-1</span>
+      </label>
+
+      <div class="buttons">
+        <button id="lightingPresetSubtle" type="button" data-i18n="btn_preset_subtle">Subtle</button>
+        <button id="lightingPresetNatural" type="button" data-i18n="btn_preset_natural">Natural</button>
+        <button id="lightingPresetIntense" type="button" data-i18n="btn_preset_intense">Intense</button>
+        <button id="lightingPresetReset" type="button" data-i18n="btn_preset_reset">Reset</button>
+      </div>
+
+      <div class="hint" data-i18n="tip_lighting">
+        Tip: Enable lighting fusion to make the model blend into the scene based on ambient light analysis.
+      </div>
+
+      <div class="section-title" data-i18n="section_background">📷 Background Image</div>
+      <div class="buttons">
+        <button id="uploadBackground" type="button" class="primary" data-i18n="btn_upload_background">
+          Upload Background
+        </button>
+        <button id="extractForeground" type="button" data-i18n="btn_extract_foreground">
+          Extract Foreground (AI)
+        </button>
+      </div>
+      <input type="file" id="backgroundFileInput" accept="image/*" style="display: none;" />
+      <div class="hint" data-i18n="tip_background_upload">
+        Upload a background image, then click "Extract Foreground" to generate mask via AI.
+      </div>
+
+      <div class="section-title" data-i18n="section_mask">Occlusion Mask</div>
+      <label class="row" for="occlusionOffsetInput">
+        <span data-i18n="mask_offset_y">Mask Offset Y</span>
+        <input id="occlusionOffsetInput" class="scrub-input" type="number" step="1" />
+        <span data-i18n="unit_px">px</span>
+      </label>
+      <label class="row" for="edgeNodeCountInput">
+        <span data-i18n="mask_nodes">Edge Node Count</span>
+        <input id="edgeNodeCountInput" class="scrub-input" type="number" step="1" />
+        <span data-i18n="unit_count">count</span>
+      </label>
+
+      <label class="checkbox-row">
+        <input id="showHandles" type="checkbox" checked />
+        <span data-i18n="show_handles">Show edge nodes</span>
+      </label>
+      <label class="checkbox-row">
+        <input id="showMaskLine" type="checkbox" checked />
+        <span data-i18n="show_mask_line">Show mask edge line</span>
+      </label>
+      <label class="checkbox-row">
+        <input id="enableMaskDrag" type="checkbox" checked />
+        <span data-i18n="enable_mask_drag">Enable mask drag (drag inside masked area)</span>
+      </label>
+
+      <textarea id="polygonInput" spellcheck="false"></textarea>
+      <div class="hint" data-i18n="tip_polygon_format">
+        Polygon format: [[x1,y1],[x2,y2],...]. Supports full polygon or top edge points.
+      </div>
+      <div class="hint" data-i18n="tip_add_delete_nodes">
+        Add node mode: click near mask edge to insert point. Right-click a node to delete it.
+      </div>
+
+      <div class="buttons">
+        <button id="autoMask" type="button" class="primary" data-i18n="btn_auto_mask">
+          Auto Estimate Mask
+        </button>
+        <button id="loadAiMask" type="button" data-i18n="btn_load_ai_mask">
+          Load AI Mask (test1)
+        </button>
+        <button id="toggleAddNode" type="button" data-i18n="btn_toggle_add_node">
+          Add Node Mode
+        </button>
+      </div>
+      <div class="buttons">
+        <button id="resetModel" type="button" data-i18n="btn_reset_model">Reset Model</button>
+        <button id="resetOcclusion" type="button" data-i18n="btn_reset_mask">Reset Mask</button>
+        <button id="resetAll" type="button" data-i18n="btn_reset_all">Reset All</button>
+        <button id="save" type="button" data-i18n="btn_print_config">Print Config</button>
+      </div>
+      <div id="status"></div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/pixi.js@6.5.10/dist/browser/pixi.min.js"></script>
+    <script src="https://cubism.live2d.com/sdk-web/cubismcore/live2dcubismcore.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/pixi-live2d-display@0.4.0/dist/cubism4.min.js"></script>
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>

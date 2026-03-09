@@ -1,0 +1,106 @@
+{
+  "scene": "D:\\sit_here\\test_image\\test1.jpg",
+  "topEdgePoints": [
+    [
+      0.0,
+      498.0
+    ],
+    [
+      51.913,
+      475.25
+    ],
+    [
+      103.826,
+      461.6
+    ],
+    [
+      155.739,
+      428.2
+    ],
+    [
+      207.652,
+      398.2
+    ],
+    [
+      259.565,
+      377.0
+    ],
+    [
+      311.478,
+      363.0
+    ],
+    [
+      363.391,
+      349.0
+    ],
+    [
+      415.304,
+      336.8
+    ],
+    [
+      467.217,
+      337.0
+    ],
+    [
+      519.13,
+      337.4
+    ],
+    [
+      571.043,
+      337.2
+    ],
+    [
+      622.957,
+      337.2
+    ],
+    [
+      674.87,
+      332.8
+    ],
+    [
+      726.783,
+      328.4
+    ],
+    [
+      778.696,
+      328.2
+    ],
+    [
+      830.609,
+      322.6
+    ],
+    [
+      882.522,
+      318.8
+    ],
+    [
+      934.435,
+      321.2
+    ],
+    [
+      986.348,
+      336.4
+    ],
+    [
+      1038.261,
+      359.2
+    ],
+    [
+      1090.174,
+      395.8
+    ],
+    [
+      1142.087,
+      415.25
+    ],
+    [
+      1194.0,
+      444.333
+    ]
+  ],
+  "edgeNodeCount": 24,
+  "maskWidth": 1195,
+  "maskHeight": 896,
+  "threshold": 128,
+  "prompt": "Generate a strict black-and-white occlusion mask aligned pixel-perfect to the input photo. Task: mark the ENTIRE tabletop plane in front of the camera as WHITE, including empty table surface texture, table edge, and all objects resting on the table (hotpot, bowls, plates, chopsticks, cups, food). Also mark any near-camera foreground objects as WHITE. Mark chairs, walls, floor, and all background regions as BLACK. Output only one flat mask image, no text, no decoration, no style transfer, no extra objects."
+}
