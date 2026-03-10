@@ -11,8 +11,8 @@ export const CONFIG = {
   },
   paths: {
     background: "../test_image/test1.jpg",
-    model: "./l2d/LilyaBee.model3.json",
-    fallback: "./l2d/QQ20251224-201845.png",
+    model: "./l2d/hiyori_pro_t11.model3.json",
+    fallback: null,
     aiMaskImage: "../api_generated_images/test1_mask_preset/mask_raw.png"
   }
 };

@@ -43,6 +43,46 @@
         background: var(--panel-bg);
         backdrop-filter: blur(8px);
         box-sizing: border-box;
+        transition: transform 0.3s ease, opacity 0.3s ease;
+      }
+
+      #panel.hidden {
+        transform: translateX(-100%);
+        opacity: 0;
+        pointer-events: none;
+      }
+
+      #togglePanel {
+        position: fixed;
+        left: 14px;
+        top: 14px;
+        width: 40px;
+        height: 40px;
+        border: 1px solid var(--panel-border);
+        border-radius: 8px;
+        background: var(--panel-bg);
+        backdrop-filter: blur(8px);
+        color: var(--text-main);
+        font-size: 20px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1001;
+        transition: all 0.2s ease;
+      }
+
+      #togglePanel:hover {
+        background: rgba(109, 194, 162, 0.2);
+        border-color: var(--accent);
+      }
+
+      #panel.hidden ~ #togglePanel {
+        left: 14px;
+      }
+
+      #panel:not(.hidden) ~ #togglePanel {
+        left: calc(min(480px, calc(100vw - 28px)) + 24px);
       }
 
       h1 {
@@ -160,6 +200,7 @@
   </head>
   <body>
     <div id="stage"></div>
+    <button id="togglePanel" title="Toggle Panel">☰</button>
 
     <div id="panel">
       <h1 data-i18n="title">Desk Occlusion Live2D Demo</h1>

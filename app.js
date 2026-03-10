@@ -268,6 +268,8 @@ const state = {
 };
 
 const ui = {
+  panel: document.getElementById("panel"),
+  togglePanelBtn: document.getElementById("togglePanel"),
   languageSelect: document.getElementById("languageSelect"),
   xInput: document.getElementById("xInput"),
   yInput: document.getElementById("yInput"),
@@ -366,8 +368,16 @@ async function boot() {
 
   backgroundTexture = await PIXI.Texture.fromURL(PATHS.background);
   backgroundSprite = new PIXI.Sprite(backgroundTexture);
-  backgroundSprite.width = IMAGE_SIZE.width;
-  backgroundSprite.height = IMAGE_SIZE.height;
+  // Keep original aspect ratio
+  const bgAspect = backgroundTexture.width / backgroundTexture.height;
+  const screenAspect = window.innerWidth / window.innerHeight;
+  if (bgAspect > screenAspect) {
+    backgroundSprite.width = window.innerWidth;
+    backgroundSprite.height = window.innerWidth / bgAspect;
+  } else {
+    backgroundSprite.height = window.innerHeight;
+    backgroundSprite.width = window.innerHeight * bgAspect;
+  }
   backgroundSprite.zIndex = 0;
   sceneRoot.addChild(backgroundSprite);
 
@@ -386,8 +396,9 @@ async function boot() {
   ambientLightingPlugin.initialize(app, modelContainer);
 
   foregroundSprite = new PIXI.Sprite(backgroundTexture);
-  foregroundSprite.width = IMAGE_SIZE.width;
-  foregroundSprite.height = IMAGE_SIZE.height;
+  // Keep same size as background
+  foregroundSprite.width = backgroundSprite.width;
+  foregroundSprite.height = backgroundSprite.height;
   foregroundSprite.zIndex = 20;
   sceneRoot.addChild(foregroundSprite);
 
@@ -482,6 +493,11 @@ function setupUiBindings() {
   console.log("languageSelect:", ui.languageSelect);
   console.log("uploadBackgroundBtn:", ui.uploadBackgroundBtn);
   console.log("backgroundFileInput:", ui.backgroundFileInput);
+
+  // Toggle panel visibility
+  ui.togglePanelBtn.addEventListener("click", () => {
+    ui.panel.classList.toggle("hidden");
+  });
 
   ui.languageSelect.addEventListener("change", () => {
     console.log("Language changed to:", ui.languageSelect.value);
@@ -618,18 +634,30 @@ function setupUiBindings() {
           const baseTexture = new PIXI.BaseTexture(img);
           const texture = new PIXI.Texture(baseTexture);
 
+          // Calculate size to maintain aspect ratio
+          const imgAspect = img.width / img.height;
+          const screenAspect = window.innerWidth / window.innerHeight;
+          let newWidth, newHeight;
+          if (imgAspect > screenAspect) {
+            newWidth = window.innerWidth;
+            newHeight = window.innerWidth / imgAspect;
+          } else {
+            newHeight = window.innerHeight;
+            newWidth = window.innerHeight * imgAspect;
+          }
+
           // Replace background sprite texture
           if (backgroundSprite) {
             backgroundSprite.texture = texture;
-            backgroundSprite.width = IMAGE_SIZE.width;
-            backgroundSprite.height = IMAGE_SIZE.height;
+            backgroundSprite.width = newWidth;
+            backgroundSprite.height = newHeight;
           }
 
           // Replace foreground sprite texture
           if (foregroundSprite) {
             foregroundSprite.texture = texture;
-            foregroundSprite.width = IMAGE_SIZE.width;
-            foregroundSprite.height = IMAGE_SIZE.height;
+            foregroundSprite.width = newWidth;
+            foregroundSprite.height = newHeight;
           }
 
           console.log("Background and foreground updated");

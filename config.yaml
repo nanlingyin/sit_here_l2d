@@ -1,6 +1,6 @@
 api:
   baseUrl: "https://api.hiyo.top"
-  apiKey: "sk-"
+  apiKey: "sk-rxRthcrOx2WrZf3aJXJEtO5hch2Eta35DzsXJf85hVUsJ4qc"
   model: "gemini-3.1-flash-image"
   timeout: 180
 
