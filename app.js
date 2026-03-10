@@ -26,7 +26,9 @@ const I18N = {
     model_x: "模型 X (px)",
     model_y: "模型 Y (px)",
     model_scale: "模型缩放",
+    model_rotation: "模型旋转",
     unit_free: "无限",
+    unit_degree: "度",
     section_mask: "遮挡蒙版",
     mask_offset_y: "蒙版 Y 偏移",
     mask_nodes: "边缘节点数",
@@ -41,6 +43,7 @@ const I18N = {
       "添加节点模式：点击边缘附近可插入节点。右键节点可删除。",
     tip_mask_mode: "蒙版可在多边形、AI原始蒙版、用户上传蒙版之间切换。",
     tip_scrub: "提示：鼠标停留在数值输入框，长按左键并左右拖动可快速增减。",
+    tip_rotation: "按住 Shift + 拖动模型可旋转。右键点击模型可重置旋转。",
     section_lighting: "🌟 环境光照融合",
     enable_lighting: "启用环境光照（实验性）",
     lighting_intensity: "效果强度",
@@ -90,6 +93,7 @@ const I18N = {
     status_extracting_foreground: "正在提取前景，请稍候...",
     status_foreground_extracted: "前景提取完成！点击\"加载 AI 蒙版\"应用轮廓。",
     status_extract_fail: "提取前景失败：{reason}",
+    status_rotation_reset: "模型旋转已重置。",
     status_extract_cancelled: "已取消提取。",
     status_loaded: "加载完成，可拖拽模型和蒙版进行调节。",
     status_live2d_loaded: "Live2D 模型加载成功。",
@@ -129,7 +133,9 @@ const I18N = {
     model_x: "Model X (px)",
     model_y: "Model Y (px)",
     model_scale: "Model Scale",
+    model_rotation: "Model Rotation",
     unit_free: "free",
+    unit_degree: "deg",
     section_mask: "Occlusion Mask",
     mask_offset_y: "Mask Offset Y",
     mask_nodes: "Edge Node Count",
@@ -146,6 +152,8 @@ const I18N = {
       "You can switch between polygon mask, exact AI mask, or your own uploaded mask.",
     tip_scrub:
       "Tip: hover a number field, hold left mouse, then drag left/right to quickly change values.",
+    tip_rotation:
+      "Hold Shift + drag model to rotate. Right-click model to reset rotation.",
     section_lighting: "🌟 Ambient Lighting Fusion",
     enable_lighting: "Enable Ambient Lighting (Experimental)",
     lighting_intensity: "Effect Intensity",
@@ -195,6 +203,7 @@ const I18N = {
     status_extracting_foreground: "Extracting foreground, please wait...",
     status_foreground_extracted: "Foreground extracted! Click 'Load AI Mask' to apply contour.",
     status_extract_fail: "Failed to extract foreground: {reason}",
+    status_rotation_reset: "Model rotation reset.",
     status_extract_cancelled: "Extraction cancelled.",
     status_loaded: "Loaded. Drag model and mask to tune placement.",
     status_live2d_loaded: "Live2D loaded.",
@@ -231,6 +240,7 @@ const DEFAULT_STATE = {
   modelXPx: IMAGE_SIZE.width * 0.5,
   modelYPx: IMAGE_SIZE.height * 0.66,
   modelScaleMul: 0.72,
+  modelRotationDeg: 0,
   occlusionOffsetY: 0,
   topEdgePoints: clonePoints(DEFAULT_TOP_EDGE),
   edgeNodeCount: DEFAULT_TOP_EDGE.length,
@@ -245,6 +255,7 @@ const state = {
   modelXPx: DEFAULT_STATE.modelXPx,
   modelYPx: DEFAULT_STATE.modelYPx,
   modelScaleMul: DEFAULT_STATE.modelScaleMul,
+  modelRotationDeg: DEFAULT_STATE.modelRotationDeg,
   occlusionOffsetY: DEFAULT_STATE.occlusionOffsetY,
   topEdgePoints: clonePoints(DEFAULT_STATE.topEdgePoints),
   edgeNodeCount: DEFAULT_STATE.edgeNodeCount,
@@ -261,6 +272,7 @@ const ui = {
   xInput: document.getElementById("xInput"),
   yInput: document.getElementById("yInput"),
   scaleInput: document.getElementById("scaleInput"),
+  rotationInput: document.getElementById("rotationInput"),
   occlusionOffsetInput: document.getElementById("occlusionOffsetInput"),
   edgeNodeCountInput: document.getElementById("edgeNodeCountInput"),
   showHandles: document.getElementById("showHandles"),
@@ -490,6 +502,11 @@ function setupUiBindings() {
   bindNumberInput(ui.scaleInput, {
     key: "modelScaleMul",
     scrubStep: 0.01,
+    onValue: () => applyActorTransform(),
+  });
+  bindNumberInput(ui.rotationInput, {
+    key: "modelRotationDeg",
+    scrubStep: 1,
     onValue: () => applyActorTransform(),
   });
   bindNumberInput(ui.occlusionOffsetInput, {
@@ -1144,12 +1161,42 @@ function onActorPointerDown(event) {
   if (scrub) {
     return;
   }
+
+  // Right-click to reset rotation
+  if (event.data.button === 2) {
+    state.modelRotationDeg = 0;
+    applyActorTransform();
+    syncUiFromState(false);
+    setStatusKey("status_rotation_reset");
+    event.stopPropagation();
+    return;
+  }
+
   const localPos = event.data.getLocalPosition(sceneRoot);
-  modelDrag = {
-    pointerId: event.data.pointerId,
-    offsetX: state.modelXPx - localPos.x,
-    offsetY: state.modelYPx - localPos.y,
-  };
+  const isRotating = event.data.originalEvent.shiftKey;
+
+  if (isRotating) {
+    // Calculate initial angle for rotation mode
+    const dx = localPos.x - state.modelXPx;
+    const dy = localPos.y - state.modelYPx;
+    const currentAngle = Math.atan2(dy, dx);
+    const currentAngleDeg = (currentAngle * 180) / Math.PI;
+
+    modelDrag = {
+      pointerId: event.data.pointerId,
+      isRotating: true,
+      startAngleOffset: currentAngleDeg - state.modelRotationDeg,
+    };
+  } else {
+    // Translation mode
+    modelDrag = {
+      pointerId: event.data.pointerId,
+      isRotating: false,
+      offsetX: state.modelXPx - localPos.x,
+      offsetY: state.modelYPx - localPos.y,
+    };
+  }
+
   actor.cursor = "grabbing";
   event.stopPropagation();
 }
@@ -1239,8 +1286,18 @@ function onStagePointerMove(event) {
   }
 
   if (modelDrag && modelDrag.pointerId === pointerId) {
-    state.modelXPx = localPos.x + modelDrag.offsetX;
-    state.modelYPx = localPos.y + modelDrag.offsetY;
+    if (modelDrag.isRotating) {
+      // Rotation mode: calculate angle from center
+      const dx = localPos.x - state.modelXPx;
+      const dy = localPos.y - state.modelYPx;
+      const angle = Math.atan2(dy, dx);
+      const angleDeg = (angle * 180) / Math.PI;
+      state.modelRotationDeg = angleDeg - modelDrag.startAngleOffset;
+    } else {
+      // Translation mode
+      state.modelXPx = localPos.x + modelDrag.offsetX;
+      state.modelYPx = localPos.y + modelDrag.offsetY;
+    }
     applyActorTransform();
     syncUiFromState(false);
   }
@@ -1284,6 +1341,7 @@ function applyActorTransform() {
   actor.y = state.modelYPx;
   const scale = baseModelScale * state.modelScaleMul;
   actor.scale.set(scale, scale);
+  actor.rotation = (state.modelRotationDeg * Math.PI) / 180;
 }
 
 function redrawOcclusionMask(rebuildHandles = true) {
@@ -1450,6 +1508,7 @@ function syncUiFromState(syncPolygon) {
   ui.xInput.value = formatNumber(state.modelXPx);
   ui.yInput.value = formatNumber(state.modelYPx);
   ui.scaleInput.value = formatNumber(state.modelScaleMul);
+  ui.rotationInput.value = formatNumber(state.modelRotationDeg);
   ui.occlusionOffsetInput.value = formatNumber(state.occlusionOffsetY);
   ui.edgeNodeCountInput.value = String(clampInt(state.edgeNodeCount, 2, 300));
   ui.showHandles.checked = state.showHandles;
